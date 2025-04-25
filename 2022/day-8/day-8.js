@@ -1,6 +1,8 @@
 // Day 8: Treetop Tree House - https://adventofcode.com/2022/day/8
 import { getFullInput } from '../fsHelpers.js'
 
+console.time('Execution time: ')
+
 export function parseInput(input) {
   const rows = input
     .trim()
@@ -93,3 +95,5 @@ console.log(
   'Part 2 - highest scenic score: ',
   getHighestScenicScore(getFullInput(import.meta.url)),
 )
+
+console.timeEnd('Execution time: ')

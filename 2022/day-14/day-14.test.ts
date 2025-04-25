@@ -10,78 +10,110 @@ const exampleInput = `
 
 type Cell = [x: number, y: number]
 
-const SAND_HOLE = [500, 0]
+const SAND_HOLE = [500, -1]
 
-function dropSand(blockedCells: Cell[], lowestY: number): Cell | null {
+function dropSand(blockedCells: Cell[], lowestY: number): Cell | undefined {
   const blockedCellsLookup = blockedCells.map((cell) => cell.join(':'))
-  function isCellFree(c: Cell) {
-    return !blockedCellsLookup.includes(c.join(':'))
+  let gain = { x: 0, y: 0 }
+  let tests = 0
+  function isOffsetFree(offset: Cell) {
+    return !blockedCellsLookup.includes(
+      [
+        SAND_HOLE[0] + gain.x + offset[0],
+        SAND_HOLE[1] + gain.y + offset[1],
+      ].join(':'),
+    )
   }
-  let xGain = 0
+  // console.log({
+  //   blockedCellsLookup,
+  //   gain,
+  //   downFree: isOffsetFree([0, 1]),
+  //   down2Free: isOffsetFree([0, 2]),
+  // })
+  // return
 
-  for (let yGain = 1; yGain < lowestY - SAND_HOLE[1]; yGain++) {
-    const cell = [SAND_HOLE[0] + xGain, SAND_HOLE[1] + yGain] as Cell
+  while (true) {
+    // console.log({
+    //   blockedCellsLookup,
+    //   gain,
+    //   downFree: isOffsetFree([0, 1]),
+    //   blFree: isOffsetFree([-1, 1]),
+    //   brFree: isOffsetFree([-1, 1]),
+    // })
 
     // If cell below sand is free, go to next yGain
-    if (isCellFree([cell[0], cell[1] + 1])) {
+    if (isOffsetFree([0, 1])) {
+      gain.y += 1
+      tests += 1
       continue
     }
 
+    // return undefined
+
     // Else if bottom-left cell is free, move to that column and continue to next y-gain
-    if (isCellFree([cell[0] - 1, cell[1] + 1])) {
-      xGain -= 1
+    if (isOffsetFree([-1, 1])) {
+      gain.x -= 1
+      gain.y += 1
       continue
     }
 
     // Likewise for bottom-right cell
-    if (isCellFree([cell[0] + 1, cell[1] + 1])) {
-      xGain += 1
+    if (isOffsetFree([1, 1])) {
+      gain.x += 1
+      gain.y += 1
       continue
     }
 
-    // Otherwise, the cell is at rest
-    return [SAND_HOLE[0] + xGain, SAND_HOLE[1] + yGain]
-  }
+    // No resting place, we've fallen beyond `lowestRockY` and into the void
+    if (gain.y + 1 >= lowestY) {
+      return
+    }
 
-  // No resting place, we've fallen beyond `lowestRockY` and into the void
-  return null
+    // Otherwise, the cell is at rest
+    return [SAND_HOLE[0] + gain.x, SAND_HOLE[1] + gain.y]
+  }
 }
 
-function solve(input: string, floorModifier = 0, debug = false) {
+function solve(input: string, floorOffset = 0, debug = false) {
   const parsed = parseInput(input)
   const sandAtRest: Cell[] = []
 
-  const lowestY = parsed.lowestRockY
+  const lowestY = parsed.lowestRockY + floorOffset
 
   if (debug) {
-    console.log(`# START\n`, drawState(parsed.rockCells, []))
+    console.log(`# START\n`)
+    console.log(drawState(parsed.rockCells, sandAtRest, floorOffset))
   }
 
-  while (true) {
-    if (debug && sandAtRest.length % 20 === 0) {
-      console.log(
-        `# SAND ${sandAtRest.length}\n`,
-        drawState(parsed.rockCells, sandAtRest) + '\n\n\n',
-      )
-    }
-    const newSand = dropSand(
-      [...parsed.rockCells, ...sandAtRest],
-      parsed.lowestRockY,
-    )
+  while (sandAtRest.length < 23) {
+    const newSand = dropSand([...parsed.rockCells, ...sandAtRest], lowestY)
+    console.log({ newSand })
 
     if (!newSand) {
+      if (debug) {
+        console.log(`# END\n`)
+        console.log(drawState(parsed.rockCells, sandAtRest, floorOffset))
+      }
       return sandAtRest.length
     }
 
     sandAtRest.push(newSand)
+
+    if (debug && sandAtRest.length % 5 === 0) {
+      console.log(`# SAND${sandAtRest.length}\n`)
+      console.log(
+        drawState(parsed.rockCells, sandAtRest, floorOffset) + '\n\n\n',
+      )
+    }
   }
 }
 
 test('Day #14, example input', () => {
-  expect(solve(exampleInput)).toBe(24)
+  // expect(solve(exampleInput)).toBe(24)
+  expect(solve(exampleInput, 2, true)).toBe(93)
 })
 
-console.log('Day #14, part 1: ', solve(getFullInput(import.meta.url), false)) // 539 is too low
+// console.log('Day #14, part 1: ', solve(getFullInput(import.meta.url), false)) // 539 is too low
 
 function parseInput(input: string) {
   const rocks = input
@@ -118,7 +150,8 @@ function parseInput(input: string) {
     rockCells,
   }
 }
-function drawState(rockCells: Cell[], sandAtRest: Cell[]) {
+
+function drawState(rockCells: Cell[], sandAtRest: Cell[], floorOffset = 0) {
   const allCells = [...rockCells, ...sandAtRest]
   const cellSignatures = allCells.map((c) => c.join(':'))
 
@@ -131,7 +164,7 @@ function drawState(rockCells: Cell[], sandAtRest: Cell[]) {
     return 'rock'
   }
   const bounds = {
-    bottom: allCells.sort((a, b) => b[1] - a[1])[0][1],
+    bottom: allCells.sort((a, b) => b[1] - a[1])[0][1] + floorOffset,
     top: allCells.sort((a, b) => a[1] - b[1])[0][1],
     left: allCells.sort((a, b) => a[0] - b[0])[0][0],
     right: allCells.sort((a, b) => b[0] - a[0])[0][0],
